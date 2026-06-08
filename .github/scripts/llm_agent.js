@@ -1,4 +1,4 @@
-const github = require('@actions/github');
+const github = require('@actions/github/lib/github');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 async function run() {
