@@ -1,29 +1,21 @@
-name: LLM Code Assistant
+name: Chat com a IA
 
 on:
-  issues:
-    types: [opened]
-  pull_request:
-    types: [opened, synchronize]
+  issue_comment:
+    types: [created]
 
 jobs:
-  llm_review:
+  chat:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write # Permissão necessária para comentar na issue
     steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-      
-      - name: Configurar Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          python-version: '3.10'
-
-      - name: Instalar dependências
-        run: pip install requests PyGithub google-generativeai
-
-      - name: Rodar Script da LLM
+          node-version: '20'
+      - run: npm install @google/generative-ai @actions/github
+      - run: node .github/scripts/llm_agent.js
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Nativo do GitHub
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }} # Sua chave
-          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
-        run: python .github/scripts/llm_agent.py
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
