@@ -2,12 +2,18 @@ const { getOctokit, context } = require('@actions/github');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 async function run() {
+  console.log("Script iniciado!"); // Isso aparecerá nos Logs da Action
   const github = getOctokit(process.env.GITHUB_TOKEN);
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   
   const { owner, repo } = context.repo;
   const issueNumber = context.payload.issue.number;
   const commentBody = context.payload.comment.body;
+
+  if (!context.payload.comment) {
+    console.log("Não é um comentário, ignorando...");
+    return;
+  }
 
   // Se o comentário não começar com /ia, ele ignora
   if (!commentBody.startsWith('/ia')) return;

@@ -1,0 +1,31 @@
+name: Chat com a IA
+
+on:
+  issue_comment:
+    types: [created]
+    workflow_dispatch:
+
+jobs:
+  chat:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+      
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências
+        run: |
+          npm init -y
+          npm install @google/generative-ai @actions/github
+
+      - name: Rodar Agente
+        run: node .github/scripts/llm_agent.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
