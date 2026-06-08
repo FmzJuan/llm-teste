@@ -1,18 +1,14 @@
-const github = require('@actions/github/lib/github');
+const { getOctokit, context } = require('@actions/github');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 async function run() {
   console.log("Script iniciado!");
 
-  // Inicializa o cliente Octokit usando o objeto importado
-  const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+  const octokit = getOctokit(process.env.GITHUB_TOKEN);
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   
-  // Acessa o contexto diretamente do objeto github
-  const { context } = github;
   const { owner, repo } = context.repo;
 
-  // Garante que existe uma issue no payload para evitar erros
   if (!context.payload.issue) {
     console.log("Evento não relacionado a uma issue. Encerrando.");
     return;
@@ -20,7 +16,6 @@ async function run() {
 
   const issueNumber = context.payload.issue.number;
   
-  // Captura o texto do comentário OU o texto da descrição da issue
   let userText = '';
   if (context.payload.comment) {
     userText = context.payload.comment.body;
@@ -28,7 +23,6 @@ async function run() {
     userText = context.payload.issue.body;
   }
 
-  // Verifica se o texto existe e começa com o comando
   if (!userText || !userText.trim().startsWith('/ia')) {
     console.log("Comando /ia não encontrado ou evento inválido.");
     return;
