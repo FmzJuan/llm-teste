@@ -1,11 +1,23 @@
-const { getOctokit, context } = require('@actions/github');
+const github = require('@actions/github');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 async function run() {
-  const github = getOctokit(process.env.GITHUB_TOKEN);
+  console.log("Script iniciado!");
+
+  // Inicializa o cliente Octokit usando o objeto importado
+  const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   
+  // Acessa o contexto diretamente do objeto github
+  const { context } = github;
   const { owner, repo } = context.repo;
+
+  // Garante que existe uma issue no payload para evitar erros
+  if (!context.payload.issue) {
+    console.log("Evento não relacionado a uma issue. Encerrando.");
+    return;
+  }
+
   const issueNumber = context.payload.issue.number;
   
   // Captura o texto do comentário OU o texto da descrição da issue
@@ -16,24 +28,31 @@ async function run() {
     userText = context.payload.issue.body;
   }
 
-  // Verifica se o texto contém o comando /ia
-  if (!userText || !userText.startsWith('/ia')) {
+  // Verifica se o texto existe e começa com o comando
+  if (!userText || !userText.trim().startsWith('/ia')) {
     console.log("Comando /ia não encontrado ou evento inválido.");
     return;
   }
 
-  const prompt = `Você é um assistente de desenvolvimento. Responda ao pedido: ${userText.replace('/ia', '')}`;
+  console.log("Processando pedido com a IA...");
+
+  const prompt = `Você é um assistente de desenvolvimento. Responda ao pedido do usuário de forma técnica e objetiva: ${userText.replace('/ia', '').trim()}`;
 
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   const result = await model.generateContent(prompt);
   const aiResponse = result.response.text();
 
-  await github.rest.issues.createComment({
+  await octokit.rest.issues.createComment({
     owner,
     repo,
     issue_number: issueNumber,
     body: `-> **IA Assistente:** <-\n\n${aiResponse}`
   });
+  
+  console.log("Comentário postado com sucesso!");
 }
 
-run();
+run().catch(err => {
+  console.error("Erro na execução do script:", err);
+  process.exit(1);
+});
