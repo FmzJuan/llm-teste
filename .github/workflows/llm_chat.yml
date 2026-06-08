@@ -24,8 +24,8 @@ jobs:
 
       - name: Instalar dependências
         run: |
-          npm init -y
-          npm install @google/generative-ai @actions/github
+           npm init -y
+           npm install @google/generative-ai @octokit/rest
 
       - name: Rodar Agente
         run: node .github/scripts/llm_agent.js

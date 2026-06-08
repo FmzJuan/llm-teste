@@ -1,26 +1,29 @@
-const { getOctokit, context } = require('@actions/github');
+const { Octokit } = require('@octokit/rest');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 async function run() {
   console.log("Script iniciado!");
 
-  const octokit = getOctokit(process.env.GITHUB_TOKEN);
+  const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  
-  const { owner, repo } = context.repo;
 
-  if (!context.payload.issue) {
+  // Lê o contexto do GitHub via variáveis de ambiente
+  const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  const payload = require(eventPath);
+
+  if (!payload.issue) {
     console.log("Evento não relacionado a uma issue. Encerrando.");
     return;
   }
 
-  const issueNumber = context.payload.issue.number;
-  
+  const issueNumber = payload.issue.number;
+
   let userText = '';
-  if (context.payload.comment) {
-    userText = context.payload.comment.body;
-  } else if (context.payload.issue) {
-    userText = context.payload.issue.body;
+  if (payload.comment) {
+    userText = payload.comment.body;
+  } else if (payload.issue) {
+    userText = payload.issue.body;
   }
 
   if (!userText || !userText.trim().startsWith('/ia')) {
@@ -42,7 +45,7 @@ async function run() {
     issue_number: issueNumber,
     body: `-> **IA Assistente:** <-\n\n${aiResponse}`
   });
-  
+
   console.log("Comentário postado com sucesso!");
 }
 
