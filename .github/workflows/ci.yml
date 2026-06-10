@@ -1,0 +1,34 @@
+name: CI Matrix Build
+
+on:
+  push:
+    branches: [ "main", "teste" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Aqui definimos as 3 versões de cada linguagem
+        node-version: [18, 20, 22]
+        python-version: ['3.10', '3.11', '3.12']
+        
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup do Ambiente Híbrido (Usando nossa Composite Action)
+        uses: ./.github/actions/setup-env
+        with:
+          node-version: ${{ matrix.node-version }}
+          python-version: ${{ matrix.python-version }}
+
+      # Aqui entrariam seus testes reais (ex: npm test, pytest)
+      # Para o desafio, vamos simular a validação do ambiente
+      - name: Rodar Testes de Validação
+        shell: bash
+        run: |
+          echo "Testando ambiente com Node $(node -v) e Python $(python --version)"
+          # Se houvesse scripts Python no repositório, você testaria aqui

@@ -1,0 +1,21 @@
+name: 'Setup Node e Python'
+description: 'Instala as versões dinâmicas de Node.js e Python para testes'
+inputs:
+  node-version:
+    description: 'Versão do Node.js'
+    required: true
+  python-version:
+    description: 'Versão do Python'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Configurar Node.js ${{ inputs.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        
+    - name: Configurar Python ${{ inputs.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
