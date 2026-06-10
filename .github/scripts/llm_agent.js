@@ -35,7 +35,7 @@ async function run() {
 
   const prompt = `Você é um assistente de desenvolvimento. Responda ao pedido do usuário de forma técnica e objetiva: ${userText.replace('/ia', '').trim()}`;
 
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const result = await model.generateContent(prompt);
   const aiResponse = result.response.text();
 
