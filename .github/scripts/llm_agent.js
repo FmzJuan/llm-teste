@@ -34,8 +34,28 @@ async function run() {
     });
 
     const prompt = `Analise o seguinte diff de código e faça um code review apontando melhorias e bugs:\n\n${diff}`;
-    const result = await model.generateContent(prompt);
     
+    // --- LÓGICA DE TENTATIVAS (RETRY PATTERN) ---
+    let retries = 3;
+    let result;
+
+    while (retries > 0) {
+      try {
+        console.log(`Tentando contato com a IA... (Restam ${retries} tentativas)`);
+        result = await model.generateContent(prompt);
+        break; // Se deu certo, sai do loop com sucesso
+      } catch (error) {
+        if (error.status === 503 && retries > 1) {
+          console.log("⚠️ API sobrecarregada. Aguardando 3 segundos para tentar de novo...");
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          retries--;
+        } else {
+          throw error; // Se for outro erro ou não tiver mais tentativas, quebra a execução
+        }
+      }
+    }
+    // --------------------------------------------
+
     await octokit.rest.issues.createComment({
       owner,
       repo,
