@@ -1,55 +1,81 @@
+const fs = require('fs');
+const path = require('path');
 const { Octokit } = require('@octokit/rest');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 async function run() {
-  console.log("Script iniciado!");
+  console.log("🚀 Iniciando DevBot...");
 
   const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-  // Lê o contexto do GitHub via variáveis de ambiente
   const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
-  const eventPath = process.env.GITHUB_EVENT_PATH;
-  const payload = require(eventPath);
+  const payload = require(process.env.GITHUB_EVENT_PATH);
 
-  if (!payload.issue) {
-    console.log("Evento não relacionado a uma issue. Encerrando.");
-    return;
-  }
+  // 1. Carregar as regras (System Prompt)
+  const rulesPath = path.join(process.env.GITHUB_WORKSPACE, 'llm_rules.md');
+  const systemInstruction = fs.existsSync(rulesPath) ? fs.readFileSync(rulesPath, 'utf8') : '';
 
-  const issueNumber = payload.issue.number;
-
-  let userText = '';
-  if (payload.comment) {
-    userText = payload.comment.body;
-  } else if (payload.issue) {
-    userText = payload.issue.body;
-  }
-
-  if (!userText || !userText.trim().startsWith('/ia')) {
-    console.log("Comando /ia não encontrado ou evento inválido.");
-    return;
-  }
-
-  console.log("Processando pedido com a IA...");
-
-  const prompt = `Você é um assistente de desenvolvimento. Responda ao pedido do usuário de forma técnica e objetiva: ${userText.replace('/ia', '').trim()}`;
-
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-  const result = await model.generateContent(prompt);
-  const aiResponse = result.response.text();
-
-  await octokit.rest.issues.createComment({
-    owner,
-    repo,
-    issue_number: issueNumber,
-    body: `-> **IA Assistente:** <-\n\n${aiResponse}`
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-2.5-flash",
+    systemInstruction: systemInstruction 
   });
 
-  console.log("Comentário postado com sucesso!");
+  // 2. Roteamento: É um Pull Request? (Fase 2 - Code Review)
+  if (payload.pull_request) {
+    console.log("👀 Pull Request detectado. Iniciando Code Review...");
+    const prNumber = payload.pull_request.number;
+
+    // Busca o 'diff' (as linhas de código alteradas)
+    const { data: diff } = await octokit.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: prNumber,
+      mediaType: { format: 'diff' }
+    });
+
+    const prompt = `Analise o seguinte diff de código e faça um code review apontando melhorias e bugs:\n\n${diff}`;
+    const result = await model.generateContent(prompt);
+    
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: `### 🤖 DevBot Code Review\n\n${result.response.text()}`
+    });
+    
+    console.log("✅ Code Review finalizado.");
+    return;
+  }
+
+  // 3. Roteamento: É uma Issue/Comentário? (Fase 3 - Agente interativo)
+  if (payload.issue) {
+    const issueNumber = payload.issue.number;
+    const userText = payload.comment ? payload.comment.body : payload.issue.body;
+
+    if (!userText || !userText.trim().startsWith('/ia')) {
+      console.log("⏭️ Ignorando: Comando /ia não encontrado.");
+      return;
+    }
+
+    console.log("🧠 Processando comando via Issue...");
+    const commandText = userText.replace('/ia', '').trim();
+    const prompt = `Responda à seguinte solicitação do desenvolvedor:\n\n${commandText}`;
+    
+    const result = await model.generateContent(prompt);
+
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      body: `### 🤖 DevBot Responde\n\n${result.response.text()}`
+    });
+
+    console.log("✅ Resposta postada na issue.");
+    return;
+  }
 }
 
 run().catch(err => {
-  console.error("Erro na execução do script:", err);
+  console.error("❌ Erro crítico na execução:", err);
   process.exit(1);
 });

@@ -1,18 +1,25 @@
-name: Chat com a IA
+name: DevBot - Agente Central
 
 on:
   issue_comment:
     types: [created]
   issues:
     types: [opened]
+  pull_request:
+    types: [opened, synchronize] # Ativa na criação e atualização de PRs
   workflow_dispatch:
-
+  workflow_call: # Permite que outros repositórios chamem este workflow
+    secrets:
+      GEMINI_API_KEY:
+        required: true
 
 jobs:
-  chat:
+  ai_agent:
     runs-on: ubuntu-latest
     permissions:
       issues: write
+      pull-requests: write # Necessário para postar reviews
+      contents: read
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
