@@ -1,23 +1,33 @@
+require('dotenv').config();
 const express = require('express');
+const db = require('./db'); // Resolve a inicialização do banco de dados
 const app = express();
 
-// Falha 1: Credenciais expostas no código e uso de 'var'
-var dbPassword = "senha_super_secreta_123"; 
+app.get('/user', async (req, res) => {
+    try {
+        let userId = req.query.id;
 
-app.get('/user', function(req, res) {
-    let userId = req.query.id;
-    
-    // Falha 2: SQL Injection puro! Nunca concatene strings em queries
-    let query = "SELECT * FROM users WHERE id = " + userId; 
-    
-    // Falha 3: Callback hell e falta de tratamento de erro adequado
-    db.execute(query, function(err, result) {
-        if(err) {
-            console.log("erro: " + err);
+        // Correção da Falha 3: Validação estrita de entrada
+        if (!userId || isNaN(parseInt(userId))) {
+            return res.status(400).send('Invalid User ID');
         }
-        // Falha 4: Pode quebrar a aplicação se der erro, pois tenta enviar o result vazio
-        res.send(result); 
-    });
+
+        // Correção da Falha 2: Consulta parametrizada com sintaxe estável para Postgres ($1)
+        const { rows } = await db.query("SELECT * FROM users WHERE id = $1", [parseInt(userId)]);
+
+        // Tratamento correto para registro inexistente
+        if (rows.length === 0) {
+            return res.status(404).send('User not found');
+        }
+        
+        // Retorna o usuário encontrado com segurança
+        res.send(rows[0]); 
+    } catch (error) {
+        // Log legível para a esteira de observabilidade
+        console.error("Erro detectado na rota /user: ", error);
+        res.status(500).send('Internal Server Error');
+    }
 });
 
-app.listen(3000, () => console.log('Rodando...'));
+const PORT = 3000;
+app.listen(PORT, () => console.log(`Servidor rodando com segurança na porta ${PORT}...`));
